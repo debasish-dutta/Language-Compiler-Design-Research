@@ -8,6 +8,7 @@
 #include "stack.h"
 #include "build/y.tab.h"
 #include "syntax.h"
+#include "assembly.h"
 
 void print_help() {
     printf("ddd\n");
@@ -93,12 +94,10 @@ int main(int argc, char const *argv[])
         printf("---AST---\n");
         print_syntax(complete_syntax);
     } else {
+        write_assembly(complete_syntax);
         syntax_free(complete_syntax);
 
-        printf("Written out.s.\n");
-        printf("Build it with:\n");
-        printf("    $ as out.s -o out.o\n");
-        printf("    $ ld -s -o out out.o\n");
+        printf("Written dd.asm.\n");
     }
 
     cleanup_syntax:
