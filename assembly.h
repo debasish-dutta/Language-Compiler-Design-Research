@@ -14,6 +14,6 @@ void write_footer(FILE *out);
 
 void write_syntax(FILE *out, Syntax *syntax);
 
-void write_assembly(Syntax *syntax);
+void write_assembly(Syntax *syntax, char *file_name);
 
 #endif
