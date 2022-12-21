@@ -99,7 +99,16 @@ void write_syntax(FILE *out, Syntax *syntax) {
 }
 
 
-void write_assembly(Syntax *syntax) {
+void write_assembly(Syntax *syntax, char const *file_name) {
+    
+    char *filename = strrchr(file_name, '/');
+    if (filename == NULL)
+        filename = file_name;
+    else
+        filename++;
+    
+    filename;
+
     FILE *out = fopen("dd.asm", "wb");
 
     write_header(out);

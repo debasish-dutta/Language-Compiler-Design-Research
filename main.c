@@ -11,7 +11,15 @@
 #include "assembly.h"
 
 void print_help() {
-    printf("ddd\n");
+    printf("dd\n");
+    printf("To compile a file:\n");
+    printf("    $ dd foo.dd\n");
+    printf("To output the tokens without parsing:\n");
+    printf("    $ dd --dump-tokens foo.dd\n");
+    printf("To output the AST without compiling:\n");
+    printf("    $ dd --dump-ast foo.dd\n");
+    printf("To print this message:\n");
+    printf("    $ dd --help\n\n");
 }
 
 extern Stack *syntax_stack;
@@ -26,13 +34,14 @@ typedef enum {
 } stage_t;
 
 
-int main(int argc, char const *argv[])
+int main(int argc, char *argv[])
 {
      ++argv, --argc; /* Skip over program name. */
     
     stage_t terminate_at = EMIT_ASM;
 
-    char const *file_name;
+    char *file_name;
+
     if (argc == 1 && strcmp(argv[0], "--help") == 0) {
         print_help();
         return 0;
@@ -69,15 +78,14 @@ int main(int argc, char const *argv[])
     }
 
 
-
     syntax_stack = stack_new();
 
     result = yyparse();
+
     if (result != 0) {
         printf("done\n");
         goto cleanup_syntax;
     }
-
 
 
     Syntax *complete_syntax = stack_pop(syntax_stack);
@@ -94,7 +102,7 @@ int main(int argc, char const *argv[])
         printf("---AST---\n");
         print_syntax(complete_syntax);
     } else {
-        write_assembly(complete_syntax);
+        write_assembly(complete_syntax, file_name);
         syntax_free(complete_syntax);
 
         printf("Written dd.asm.\n");
