@@ -19,6 +19,12 @@ void yyerror();
 [a-zA-Z][_a-zA-Z0-9]*	     { count(); yylval = strdup(yytext); return(IDENTIFIER); }
 [0-9]+?                      { count(); yylval = strdup(yytext); return(CONSTANT); }
 ";"                          { count(); return(SEMICOLON); }
+"-"							 { count(); return(NEG); }
+"~"							 { count(); return(BNEG); }	
+"!"							 { count(); return(LNEG); }
+"+"							 { count(); return(ADD); }
+"*"							 { count(); return(MULTI); }
+"/"							 { count(); return(DIV); }
 [ \t\v\f]                    { count(); }
 \n                           { count(); }
 .                            { /* ignore bad characters */;}

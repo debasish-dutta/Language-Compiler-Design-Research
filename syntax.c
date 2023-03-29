@@ -26,6 +26,94 @@ Syntax *variable_new(char *var_name) {
     return syntax;
 }
 
+Syntax *negation_new(Syntax *expression) {
+    UnaryExpression *unary_syntax = malloc(sizeof(UnaryExpression));
+    unary_syntax->unary_type = NEGATION;
+    unary_syntax->expression = expression;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = UNARY_OPERATOR;
+    syntax->unary_expression = unary_syntax;
+
+    return syntax;
+}
+
+Syntax *bitwise_negation_new(Syntax *expression) {
+    UnaryExpression *unary_syntax = malloc(sizeof(UnaryExpression));
+    unary_syntax->unary_type = BITWISE_NEGATION;
+    unary_syntax->expression = expression;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = UNARY_OPERATOR;
+    syntax->unary_expression = unary_syntax;
+
+    return syntax;
+}
+
+Syntax *logical_negation_new(Syntax *expression) {
+    UnaryExpression *unary_syntax = malloc(sizeof(UnaryExpression));
+    unary_syntax->unary_type = LOGICAL_NEGATION;
+    unary_syntax->expression = expression;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = UNARY_OPERATOR;
+    syntax->unary_expression = unary_syntax;
+
+    return syntax;
+}
+
+Syntax *addition_new(Syntax *left, Syntax *right) {
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = ADDITION;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *subtraction_new(Syntax *left, Syntax *right) {
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = SUBTRACTION;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *multiplication_new(Syntax *left, Syntax *right) {
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = MULTIPLICATION;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *division_new(Syntax *left, Syntax *right) {
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = DIVISION;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
 Syntax *function_call_new(char *function_name, Syntax *func_args) {
     FunctionCall *function_call = malloc(sizeof(FunctionCall));
     function_call->function_name = function_name;
@@ -127,6 +215,15 @@ void syntax_free(Syntax *syntax) {
         free(syntax->variable->var_name);
         free(syntax->variable);
 
+    } else if (syntax->type == UNARY_OPERATOR) {
+        syntax_free(syntax->unary_expression->expression);
+        free(syntax->unary_expression);
+
+    } else if (syntax->type == BINARY_OPERATOR) {
+        syntax_free(syntax->binary_expression->left);
+        syntax_free(syntax->binary_expression->right);
+        free(syntax->binary_expression);
+
     } else if (syntax->type == FUNCTION_CALL) {
         syntax_free(syntax->function_call->function_arguments);
         free(syntax->function_call->function_name);
@@ -172,6 +269,24 @@ char *syntax_type_name(Syntax *syntax) {
         return "IMMEDIATE";
     } else if (syntax->type == VARIABLE) {
         return "VARIABLE";
+     } else if (syntax->type == UNARY_OPERATOR) {
+        if (syntax->unary_expression->unary_type == NEGATION) {
+            return "UNARY NEGATION";
+        } else if (syntax->unary_expression->unary_type == BITWISE_NEGATION) {
+            return "UNARY BITWISE_NEGATION";
+        } else if (syntax->unary_expression->unary_type == LOGICAL_NEGATION) {
+            return "UNARY LOGICAL_NEGATION";
+        }
+    } else if (syntax->type == BINARY_OPERATOR) {
+        if (syntax->binary_expression->binary_type == ADDITION) {
+            return "ADDITION";
+        } else if (syntax->binary_expression->binary_type == SUBTRACTION) {
+            return "SUBTRACTION";
+        } else if (syntax->binary_expression->binary_type == MULTIPLICATION) {
+            return "MULTIPLICATION";
+        } else if (syntax->binary_expression->binary_type == DIVISION) {
+            return "DIVISION";
+        }
     }else if (syntax->type == FUNCTION_CALL) {
         return "FUNCTION CALL";
     } else if (syntax->type == FUNCTION_ARGUMENTS) {
@@ -203,6 +318,20 @@ void print_syntax_indented(Syntax *syntax, int indent) {
         printf("%s %d\n", syntax_type_string, syntax->immediate->value);
     } else if (syntax->type == VARIABLE) {
         printf("%s '%s'\n", syntax_type_string, syntax->variable->var_name);
+    } else if (syntax->type == UNARY_OPERATOR) {
+        printf("%s\n", syntax_type_string);
+        print_syntax_indented(syntax->unary_expression->expression, indent + 4);
+
+    } else if (syntax->type == BINARY_OPERATOR) {
+        printf("%s LEFT\n", syntax_type_string);
+        print_syntax_indented(syntax->binary_expression->left, indent + 4);
+
+        for (int i = 0; i < indent; i++) {
+            printf(" ");
+        }
+
+        printf("%s RIGHT\n", syntax_type_string);
+        print_syntax_indented(syntax->binary_expression->right, indent + 4);
     } else if (syntax->type == FUNCTION_CALL) {
         printf("%s '%s'\n", syntax_type_string,
                syntax->function_call->function_name);

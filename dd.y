@@ -24,9 +24,18 @@ Stack *syntax_stack;
 %}
 %token IDENTIFIER CONSTANT 
 %token LBRACK '(' RBRACK ')' LCURLYBRACK '{' RCURLYBRACK '}' SEMICOLON ';'
+%token NEG '-' BNEG '~' LNEG '!'
+%token ADD '+' MULTI '*' DIV "/"
 %token RETURN FUN
 %start library
 %left  LBRACK LCURLYBRACK
+%left NEG
+%left ADD
+%left MULTI
+%left DIV
+%nonassoc LNEG
+%nonassoc BNEG
+
 %%
 library
     : functions                                                             {}{  Syntax *top_level_syntax;
@@ -59,7 +68,33 @@ statement
     ;
 expression
     : CONSTANT                          {} {stack_push(syntax_stack, immediate_new(atoi((char *)$1)));free($1);}
-	;
+    | LBRACK expression RBRACK          {}
+    | NEG expression                    {} { Syntax *current_syntax = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, negation_new(current_syntax));
+                                            }
+    | BNEG expression                   {} { Syntax *current_syntax = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, bitwise_negation_new(current_syntax));
+                                            }
+    | LNEG expression                   {} { Syntax *current_syntax = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, logical_negation_new(current_syntax));
+                                            }
+	| expression ADD expression         {} { Syntax *right = stack_pop(syntax_stack);
+                                                Syntax *left = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, addition_new(left, right));
+                                            }
+	| expression NEG expression         {} { Syntax *right = stack_pop(syntax_stack);
+                                                Syntax *left = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, subtraction_new(left, right));
+                                            }
+	| expression MULTI expression       {} { Syntax *right = stack_pop(syntax_stack);
+                                                Syntax *left = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, multiplication_new(left, right));
+                                            }
+	| expression DIV expression         {} { Syntax *right = stack_pop(syntax_stack);
+                                                Syntax *left = stack_pop(syntax_stack);
+                                                stack_push(syntax_stack, division_new(left, right));
+                                            }
+    ;
 %%
 /* #include <stdio.h>
 #include <stdlib.h>

@@ -6,6 +6,8 @@
 typedef enum {
     IMMEDIATE,
     VARIABLE,
+    UNARY_OPERATOR,
+    BINARY_OPERATOR,
     // We already use 'RETURN' and 'IF' as token names.
     BLOCK,
     RETURN_STATEMENT,
@@ -15,6 +17,14 @@ typedef enum {
     ASSIGNMENT,
     TOP_LEVEL
 } SyntaxType;
+
+typedef enum { NEGATION, BITWISE_NEGATION, LOGICAL_NEGATION } UnaryExpressionType;
+typedef enum {
+    ADDITION,
+    SUBTRACTION,
+    MULTIPLICATION,
+    DIVISION
+} BinaryExpressionType;
 
 
 struct Syntax;
@@ -26,6 +36,17 @@ typedef struct Variable {
     // TODO: once we have other types, we will need to store type here.
     char *var_name;
 } Variable;
+
+typedef struct UnaryExpression {
+    UnaryExpressionType unary_type;
+    Syntax *expression;
+} UnaryExpression;
+
+typedef struct BinaryExpression {
+    BinaryExpressionType binary_type;
+    Syntax *left;
+    Syntax *right;
+} BinaryExpression;
 
 
 typedef struct FunctionArguments { List *arguments; } FunctionArguments;
@@ -64,6 +85,10 @@ struct Syntax {
 
         Variable *variable;
 
+        UnaryExpression *unary_expression;
+
+        BinaryExpression *binary_expression;
+
         Assignment *assignment;
 
         ReturnStatement *return_statement;
@@ -83,6 +108,20 @@ struct Syntax {
 Syntax *immediate_new(int value);
 
 Syntax *variable_new(char *var_name);
+
+Syntax *negation_new(Syntax *expression);
+
+Syntax *bitwise_negation_new(Syntax *expression);
+
+Syntax *logical_negation_new(Syntax *expression);
+
+Syntax *addition_new(Syntax *left, Syntax *right);
+
+Syntax *subtraction_new(Syntax *left, Syntax *right);
+
+Syntax *multiplication_new(Syntax *left, Syntax *right);
+
+Syntax *division_new(Syntax *left, Syntax *right);
 
 Syntax *function_call_new(char *function_name, Syntax *func_args);
 

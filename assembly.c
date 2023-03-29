@@ -79,6 +79,19 @@ void write_syntax(FILE *out, Syntax *syntax) {
         ReturnStatement *return_statement = syntax->return_statement;
         write_syntax(out, return_statement->expression);
         emit_return(out);
+    } else if(syntax->type == UNARY_OPERATOR) {
+        UnaryExpression *unary_syntax = syntax->unary_expression;
+        write_syntax(out, unary_syntax->expression);
+        if (unary_syntax->unary_type == NEGATION) {
+            emit_instr(out, "neg", "X0, X0");
+        } else if (unary_syntax->unary_type == BITWISE_NEGATION) {
+            emit_instr(out, "mvn", "X0, X0");
+        } else if (unary_syntax->unary_type == LOGICAL_NEGATION) {
+            emit_instr(out, "cmp", "X0, #0");
+            emit_instr(out, "cset", "X0, eq");
+        } 
+
+    } else if(syntax->type == BINARY_OPERATOR) {
 
     } else if (syntax->type == BLOCK) {
         List *statements = syntax->block->statements;
