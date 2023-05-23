@@ -6,14 +6,18 @@
 #include <stdarg.h>
 #include <err.h>
 #include "syntax.h"
+#include "env.h"
+#include "context.h"
 
-static const int WORD_SIZE = 4;
-const int MAX_MNEMONIC_LENGTH = 1;
+static const int WORD_SIZE = 16;
+const int MAX_MNEMONIC_LENGTH = 7;
 
 void emit_header(FILE *out, char *name) { fprintf(out, "%s\n", name); }
 
-void emit_instr(FILE *out, char *instr, char *operands) {
 
+void emit_instr(FILE *out, char *instr, char *operands) {
+    // TODO: fix duplication with emit_instr_format.
+    // The assembler requires at least 4 spaces for indentation.
     fprintf(out, "    %s", instr);
 
     int argument_offset = MAX_MNEMONIC_LENGTH - strlen(instr) + 4;
@@ -45,6 +49,8 @@ void emit_instr_format(FILE *out, char *instr, char *operands_format, ...) {
     fputs("\n", out);
 }
 
+void emit_label(FILE *out, char *label) { fprintf(out, "%s:\n", label); }
+
 void emit_function_prologue(FILE *out) {
     fprintf(out, ".align 4");
     fprintf(out, "\n\n");
@@ -56,79 +62,150 @@ void emit_function_declaration(FILE *out, char *name) {
     fprintf(out, "_%s:\n", name);
 }
 
+
 void emit_return(FILE *out) {
-    fprintf(out, "    ret;\n");
+    // fprintf(out, "    leave\n");
+    fprintf(out, "    ret\n");
 }
 
 void emit_function_epilogue(FILE *out) {
     fprintf(out, "\n");
 }
 
-void write_header(FILE *out) { }
+void write_header(FILE *out) {  }
 
 void write_footer(FILE *out) {
-    // emit_function_prologue(out);
+    // TODO: this will break if a user defines a function called '_start'.
     emit_instr(out, "svc", "#0xFFFF");
 }
 
-void write_syntax(FILE *out, Syntax *syntax) {
-    
-    if (syntax->type == IMMEDIATE) {
-        emit_instr_format(out, "mov", "X0, #%d", syntax->immediate->value);
-    }  else if (syntax->type == RETURN_STATEMENT) {
-        ReturnStatement *return_statement = syntax->return_statement;
-        write_syntax(out, return_statement->expression);
-        emit_return(out);
-    } else if(syntax->type == UNARY_OPERATOR) {
+void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
+    // Note stack_offset is the next unused memory address in the
+    // stack, so we can use it directly but must adjust it for the next caller.
+    if (syntax->type == UNARY_OPERATOR) {
         UnaryExpression *unary_syntax = syntax->unary_expression;
-        write_syntax(out, unary_syntax->expression);
+
+        write_syntax(out, unary_syntax->expression, ctx);
+
         if (unary_syntax->unary_type == NEGATION) {
             emit_instr(out, "neg", "X0, X0");
         } else if (unary_syntax->unary_type == BITWISE_NEGATION) {
             emit_instr(out, "mvn", "X0, X0");
-        } else if (unary_syntax->unary_type == LOGICAL_NEGATION) {
+        }  else if (unary_syntax->unary_type == LOGICAL_NEGATION) {
             emit_instr(out, "cmp", "X0, #0");
             emit_instr(out, "cset", "X0, eq");
-        } 
+        }
+    } else if (syntax->type == IMMEDIATE) {
+        emit_instr_format(out, "mov", "X0, #%d", syntax->immediate->value);
 
-    } else if(syntax->type == BINARY_OPERATOR) {
+    } else if (syntax->type == VARIABLE) {
+        emit_instr_format(
+            out, "ldr", "X0, [sp, #%d]",
+            environment_get_offset(ctx->env, syntax->variable->var_name));
+    } else if (syntax->type == ASSIGNMENT) {
+        write_syntax(out, syntax->assignment->expression, ctx);
+
+        emit_instr_format(
+            out, "str", "X0, [sp, #%d]",
+            environment_get_offset(ctx->env, syntax->variable->var_name));
+
+    } else if (syntax->type == BINARY_OPERATOR) {
+        BinaryExpression *binary_syntax = syntax->binary_expression;
+        int stack_offset = ctx->stack_offset;
+        ctx->stack_offset -= WORD_SIZE;
+
+        // emit_instr(out, "sub", "sp, sp, #16");
+        write_syntax(out, binary_syntax->left, ctx);
+        emit_instr_format(out, "str", "X0, [sp, #%d]", stack_offset);
+
+        write_syntax(out, binary_syntax->right, ctx);
+
+        if (binary_syntax->binary_type == MULTIPLICATION) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "mul", "X0, X0, X1");
+
+        } else if (binary_syntax->binary_type == ADDITION) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "add", "X0, X0, X1");
+
+        } else if (binary_syntax->binary_type == SUBTRACTION) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "sub", "X0, X1, X0", stack_offset);
+
+        } else if (binary_syntax->binary_type == AND) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "and", "X0, X0, X1", stack_offset);
+
+        } else if (binary_syntax->binary_type == OR) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "orr", "X0, X0, X1", stack_offset);
+
+        } else if (binary_syntax->binary_type == EQUALS) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "cmp", " X0, X1", stack_offset);
+            emit_instr_format(out, "cset", " X0, eq", stack_offset);
+        }
+
+    
+    } else if (syntax->type == RETURN_STATEMENT) {
+        ReturnStatement *return_statement = syntax->return_statement;
+        write_syntax(out, return_statement->expression, ctx);
+
+        emit_return(out);
+
+    } else if (syntax->type == FUNCTION_CALL) {
+        emit_instr_format(out, "call", syntax->function_call->function_name);
+
+    } else if (syntax->type == DEFINE_VAR) {
+        DefineVarStatement *define_var_statement = syntax->define_var_statement;
+        int stack_offset = ctx->stack_offset;
+
+        environment_set_offset(ctx->env, define_var_statement->var_name,
+                               stack_offset);
+        // emit_instr(out, "sub", "sp, sp, #16");
+
+        ctx->stack_offset -= WORD_SIZE;
+        write_syntax(out, define_var_statement->init_value, ctx);
+        emit_instr_format(out, "str", "X0, [sp, #%d]\n", stack_offset);
 
     } else if (syntax->type == BLOCK) {
         List *statements = syntax->block->statements;
         for (int i = 0; i < list_length(statements); i++) {
-            write_syntax(out, list_get(statements, i));
+            write_syntax(out, list_get(statements, i), ctx);
         }
-    }  else if (syntax->type == FUNCTION) {
+    } else if (syntax->type == FUNCTION) {
+        new_scope(ctx);
+
         emit_function_declaration(out, syntax->function->name);
-        write_syntax(out, syntax->function->root_block);
+        // emit_function_prologue(out);
+        write_syntax(out, syntax->function->root_block, ctx);
         emit_function_epilogue(out);
+
     } else if (syntax->type == TOP_LEVEL) {
+        // TODO: treat the 'main' function specially.
         List *declarations = syntax->top_level->declarations;
         for (int i = 0; i < list_length(declarations); i++) {
-            write_syntax(out, list_get(declarations, i));
+            write_syntax(out, list_get(declarations, i), ctx);
         }
 
+    } else {
+        warnx("Unknown syntax %s", syntax_type_name(syntax));
+        assert(false);
     }
 }
 
+void write_assembly(Syntax *syntax, char *filename)
+{
 
-void write_assembly(Syntax *syntax, char const *file_name) {
-    
-    char *filename = strrchr(file_name, '/');
-    if (filename == NULL)
-        filename = file_name;
-    else
-        filename++;
-    
-    filename;
-
-    FILE *out = fopen("dd.asm", "wb");
+    FILE *out = fopen(filename, "wb");
 
     write_header(out);
 
-    write_syntax(out, syntax);
+    Context *ctx = new_context();
+    write_syntax(out, syntax, ctx);
 
     write_footer(out);
 
+    context_free(ctx);
     fclose(out);
 }

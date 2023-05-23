@@ -1,19 +1,22 @@
 #!/bin/zsh
 
 BIN=bin
+BUILD=build
 MAIN=$1
+DIRNAME=$(dirname "$MAIN")
 FILENAME=${$(basename "$MAIN")%.*}
 
 echo "Compiling $FILENAME..."
 
 mkdir -p bin
-cp build/dd $BIN/$FILENAME
+cp $BUILD/dd $BIN/$FILENAME
 
 echo "Building $FILENAME"
 
 ./$BIN/$FILENAME $MAIN
 
-mv dd.asm $BIN/$FILENAME.asm
+mv $BUILD/$FILENAME.asm $BIN/$FILENAME.asm
+# mv dd.asm $BIN/$FILENAME.asm
 
 as $BIN/$FILENAME.asm -o $BIN/$FILENAME.o
 

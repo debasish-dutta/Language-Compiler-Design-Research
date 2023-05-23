@@ -1,59 +1,59 @@
 %{
-#include <stdio.h>
 #define YYSTYPE char*
 #include "y.tab.h"
 
-void count();
 void comment();
+void count();
 
 void yyerror();
 %}
+
+
 %%
-"!//"                         { comment();  }
-"return"                     { count(); return(RETURN); }
-"fun"                        { count(); return(FUN); }
-"("                          { count(); return(LBRACK); }
-")"                          { count(); return(RBRACK); }
-"{"                          { count(); return(LCURLYBRACK); }
-"}"                          { count(); return(RCURLYBRACK); }
-[a-zA-Z][_a-zA-Z0-9]*	     { count(); yylval = strdup(yytext); return(IDENTIFIER); }
-[0-9]+?                      { count(); yylval = strdup(yytext); return(CONSTANT); }
-";"                          { count(); return(SEMICOLON); }
-"-"							 { count(); return(NEG); }
-"~"							 { count(); return(BNEG); }	
-"!"							 { count(); return(LNEG); }
-"+"							 { count(); return(ADD); }
-"*"							 { count(); return(MULTI); }
-"/"							 { count(); return(DIV); }
-[ \t\v\f]                    { count(); }
-\n                           { count(); }
-.                            { /* ignore bad characters */;}
+"fun"    { count(); yylval = strdup(yytext); return FUN; }
+"//"[^\n]*    { /* Discard comments. */ }
+"/*"          { comment(); }
+[ \t\n\f]+      { count(); /* Ignore whitespace */ }
+"{"           { count(); return OPEN_BRACE; }
+"}"           { count(); return CLOSE_BRACE; }
+"("           { count(); return '('; }
+")"           { count(); return ')'; }
+"~"           { count(); return '~'; }
+"!"           { count(); return '!'; }
+"+"           { count(); return '+'; }
+"-"           { count(); return '-'; }
+"*"           { count(); return '*'; }
+"<"           { count(); return '<'; }
+"&&"          { count(); return AD; }
+"||"          { count(); return ORR; }
+"=="           { count(); return EQ; }
+"="           { count(); return '='; }
+";"           { count(); return ';'; }
+","           { count(); return ','; }
+[0-9]+        {
+                /* TODO: check numbers are in the legal range, and don't start with 0. */
+                count(); yylval = strdup(yytext); return NUMBER;}
+"if"          { count(); return IF; }
+"while"       { count(); return WHILE; }
+"return"      { count(); return RETURN; }
+"var"         { count(); return TYPE; }
+[a-zA-Z][_a-zA-Z0-9]* { count(); yylval = strdup(yytext); return IDENTIFIER; }
 %%
 
-/* int yywrap(void)
-{
-    return 1;
-} */
 #define INPUT_EOF 0
 
 int column = 0;
 
-void comment()
-{
-	char c, c1;
-
-loop:
-	while ((c = yytext[0]) != '!' && c != 0)
-		putchar(c);
-
-	if ((c1 = yytext[1]) != '/' && c != 0)
-	{
-		unput(c1);
-		goto loop;
-	}
-
-	if (c != 0)
-		putchar(c1);
+void comment(void) {
+    /* Consume characters up to the closing comment marker. */
+    char c, prev = 0;
+  
+    while ((c = input()) != INPUT_EOF) {
+        if (c == '/' && prev == '*')
+            return;
+        prev = c;
+    }
+    yyerror("unterminated comment");
 }
 
 void count()

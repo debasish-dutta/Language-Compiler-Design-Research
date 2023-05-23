@@ -1,9 +1,10 @@
 #include "list.h"
 
-#ifndef BABYC_SYNTAX_HEADER
-#define BABYC_SYNTAX_HEADER
+#ifndef SYNTAX_HEADER
+#define SYNTAX_HEADER
 
-typedef enum {
+typedef enum
+{
     IMMEDIATE,
     VARIABLE,
     UNARY_OPERATOR,
@@ -11,6 +12,7 @@ typedef enum {
     // We already use 'RETURN' and 'IF' as token names.
     BLOCK,
     RETURN_STATEMENT,
+    DEFINE_VAR,
     FUNCTION,
     FUNCTION_CALL,
     FUNCTION_ARGUMENTS,
@@ -18,69 +20,106 @@ typedef enum {
     TOP_LEVEL
 } SyntaxType;
 
-typedef enum { NEGATION, BITWISE_NEGATION, LOGICAL_NEGATION } UnaryExpressionType;
-typedef enum {
+typedef enum
+{
+    NEGATION,
+    BITWISE_NEGATION,
+    LOGICAL_NEGATION
+} UnaryExpressionType;
+typedef enum
+{
     ADDITION,
     SUBTRACTION,
     MULTIPLICATION,
-    DIVISION
+    DIVISION,
+    AND,
+    OR,
+    EQUALS
 } BinaryExpressionType;
-
 
 struct Syntax;
 typedef struct Syntax Syntax;
 
-typedef struct Immediate { int value; } Immediate;
+typedef struct Immediate
+{
+    int value;
+} Immediate;
 
-typedef struct Variable {
+typedef struct Variable
+{
     // TODO: once we have other types, we will need to store type here.
     char *var_name;
 } Variable;
 
-typedef struct UnaryExpression {
+typedef struct UnaryExpression
+{
     UnaryExpressionType unary_type;
     Syntax *expression;
 } UnaryExpression;
 
-typedef struct BinaryExpression {
+typedef struct BinaryExpression
+{
     BinaryExpressionType binary_type;
     Syntax *left;
     Syntax *right;
 } BinaryExpression;
 
+typedef struct FunctionArguments
+{
+    List *arguments;
+} FunctionArguments;
 
-typedef struct FunctionArguments { List *arguments; } FunctionArguments;
-
-typedef struct FunctionCall {
+typedef struct FunctionCall
+{
     char *function_name;
     Syntax *function_arguments;
 } FunctionCall;
 
-typedef struct Assignment {
+typedef struct Assignment
+{
     char *var_name;
     Syntax *expression;
 } Assignment;
 
-typedef struct ReturnStatement { Syntax *expression; } ReturnStatement;
+typedef struct DefineVarStatement
+{
+    char *var_name;
+    Syntax *init_value;
+} DefineVarStatement;
 
-typedef struct Block { List *statements; } Block;
+typedef struct ReturnStatement
+{
+    Syntax *expression;
+} ReturnStatement;
 
-typedef struct Function {
+typedef struct Block
+{
+    List *statements;
+} Block;
+
+typedef struct Function
+{
     char *name;
     List *parameters;
     Syntax *root_block;
 } Function;
 
-typedef struct Parameter {
+typedef struct Parameter
+{
     // TODO: once we have other types, we will need to store type here.
     char *name;
 } Parameter;
 
-typedef struct TopLevel { List *declarations; } TopLevel;
+typedef struct TopLevel
+{
+    List *declarations;
+} TopLevel;
 
-struct Syntax {
+struct Syntax
+{
     SyntaxType type;
-    union {
+    union
+    {
         Immediate *immediate;
 
         Variable *variable;
@@ -92,6 +131,8 @@ struct Syntax {
         Assignment *assignment;
 
         ReturnStatement *return_statement;
+
+        DefineVarStatement *define_var_statement;
 
         FunctionArguments *function_arguments;
 
@@ -123,6 +164,12 @@ Syntax *multiplication_new(Syntax *left, Syntax *right);
 
 Syntax *division_new(Syntax *left, Syntax *right);
 
+Syntax *and_new(Syntax *left, Syntax *right);
+
+Syntax *or_new(Syntax *left, Syntax *right);
+
+Syntax *equals_new(Syntax *left, Syntax *right);
+
 Syntax *function_call_new(char *function_name, Syntax *func_args);
 
 Syntax *function_arguments_new();
@@ -132,6 +179,8 @@ Syntax *assignment_new(char *var_name, Syntax *expression);
 Syntax *return_statement_new(Syntax *expression);
 
 Syntax *block_new(List *statements);
+
+Syntax *define_var_new(char *var_name, Syntax *init_value);
 
 Syntax *function_new(char *name, Syntax *root_block);
 

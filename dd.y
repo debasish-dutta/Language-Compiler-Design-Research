@@ -1,17 +1,19 @@
 %{
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "../syntax.h"
 #include "../stack.h"
 
-void yyerror(char *s);
-
 #define YYSTYPE char*
 
 int yyparse(void);
 int yylex();
+
+void yyerror(const char *str)
+{
+	fprintf(stderr,"error: %s\n",str);
+}
 
 int yywrap()
 {
@@ -21,95 +23,232 @@ int yywrap()
 extern FILE *yyin;
 
 Stack *syntax_stack;
+
 %}
-%token IDENTIFIER CONSTANT 
-%token LBRACK '(' RBRACK ')' LCURLYBRACK '{' RCURLYBRACK '}' SEMICOLON ';'
-%token NEG '-' BNEG '~' LNEG '!'
-%token ADD '+' MULTI '*' DIV "/"
-%token RETURN FUN
-%start library
-%left  LBRACK LCURLYBRACK
-%left NEG
-%left ADD
-%left MULTI
-%left DIV
-%nonassoc LNEG
-%nonassoc BNEG
+
+%token FUN
+%token TYPE IDENTIFIER RETURN NUMBER
+%token OPEN_BRACE CLOSE_BRACE
+%token IF WHILE
+%token LESS_OR_EQUAL
+
+/* Operator associativity, least precedence first.
+ * See http://en.cppreference.com/w/c/language/operator_precedence
+ */
+%left '='
+%left '<'
+%left '+'
+%left '-'
+%left '*'
+%left AD ORR EQ
+%nonassoc '!'
+%nonassoc '~'
 
 %%
-library
-    : functions                                                             {}{  Syntax *top_level_syntax;
-                                                                if (stack_empty(syntax_stack)) {
-                                                                    top_level_syntax = top_level_new();
-                                                                } else if (((Syntax *)stack_peek(syntax_stack))->type != TOP_LEVEL) {
-                                                                    top_level_syntax = top_level_new();
-                                                                } else {
-                                                                    top_level_syntax = stack_pop(syntax_stack);
-                                                                }
 
-                                                                list_push(top_level_syntax->top_level->declarations,
-                                                                        stack_pop(syntax_stack));
-                                                                stack_push(syntax_stack, top_level_syntax);} 
-    ;
-functions
-    : FUN IDENTIFIER parameter_decl LCURLYBRACK  statement RCURLYBRACK      {} {Syntax *current_syntax = stack_pop(syntax_stack); stack_push(syntax_stack, function_new((char*)$2, current_syntax));}
-    | /* empty */                                                           {}
-    ;
-parameter_decl
-    : LBRACK parameter  RBRACK          {}
-    ;
-parameter
-    : /* empty */                       {}
-    ;
-statement
-    : RETURN expression SEMICOLON       {}{ Syntax *current_syntax = stack_pop(syntax_stack);
-                                            stack_push(syntax_stack, return_statement_new(current_syntax));} 
-    | SEMICOLON
-    ;
-expression
-    : CONSTANT                          {} {stack_push(syntax_stack, immediate_new(atoi((char *)$1)));free($1);}
-    | LBRACK expression RBRACK          {}
-    | NEG expression                    {} { Syntax *current_syntax = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, negation_new(current_syntax));
-                                            }
-    | BNEG expression                   {} { Syntax *current_syntax = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, bitwise_negation_new(current_syntax));
-                                            }
-    | LNEG expression                   {} { Syntax *current_syntax = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, logical_negation_new(current_syntax));
-                                            }
-	| expression ADD expression         {} { Syntax *right = stack_pop(syntax_stack);
-                                                Syntax *left = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, addition_new(left, right));
-                                            }
-	| expression NEG expression         {} { Syntax *right = stack_pop(syntax_stack);
-                                                Syntax *left = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, subtraction_new(left, right));
-                                            }
-	| expression MULTI expression       {} { Syntax *right = stack_pop(syntax_stack);
-                                                Syntax *left = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, multiplication_new(left, right));
-                                            }
-	| expression DIV expression         {} { Syntax *right = stack_pop(syntax_stack);
-                                                Syntax *left = stack_pop(syntax_stack);
-                                                stack_push(syntax_stack, division_new(left, right));
-                                            }
-    ;
-%%
-/* #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+program:
+        function program
+        {
+            Syntax *top_level_syntax;
+            if (stack_empty(syntax_stack)) {
+                top_level_syntax = top_level_new();
+            } else if (((Syntax *)stack_peek(syntax_stack))->type != TOP_LEVEL) {
+                top_level_syntax = top_level_new();
+            } else {
+                top_level_syntax = stack_pop(syntax_stack);
+            }
 
-extern char yytext[];
+            list_push(top_level_syntax->top_level->declarations,
+                      stack_pop(syntax_stack));
+            stack_push(syntax_stack, top_level_syntax);
+        }
+        |
+        ;
 
-char st[100][10];
-int top=0;
-char tmp[3] = "t0"; */
-extern int column;
+function:
+	FUN IDENTIFIER '(' parameter_list ')' OPEN_BRACE block CLOSE_BRACE
+        {
+            Syntax *current_syntax = stack_pop(syntax_stack);
+            // TODO: assert current_syntax has type BLOCK.
+            stack_push(syntax_stack, function_new((char*)$2, current_syntax));
+        }
+        ;
 
-void yyerror(char *s)
-{
-	fflush(stdout);
-    fprintf(stderr,"error: %s\n",s);
-	printf("\n%*s\n%*s\n", column, "^", column, s);
-}
+parameter_list:
+        nonempty_parameter_list
+        |
+        ;
+
+nonempty_parameter_list:
+        TYPE IDENTIFIER ',' parameter_list
+        |
+        TYPE IDENTIFIER
+        ;
+
+block:
+        statement block
+        {
+            /* Append to the current block, or start a new block. */
+            Syntax *block_syntax;
+            if (stack_empty(syntax_stack)) {
+                block_syntax = block_new(list_new());
+            } else if (((Syntax *)stack_peek(syntax_stack))->type != BLOCK) {
+                block_syntax = block_new(list_new());
+            } else {
+                block_syntax = stack_pop(syntax_stack);
+            }
+
+            list_push(block_syntax->block->statements, stack_pop(syntax_stack));
+            stack_push(syntax_stack, block_syntax);
+        }
+        |
+        ;
+
+argument_list:
+        nonempty_argument_list
+        |
+        {
+            // Empty argument list.
+            stack_push(syntax_stack, function_arguments_new());
+        }
+        ;
+
+nonempty_argument_list:
+        expression ',' nonempty_argument_list
+        {
+            Syntax *arguments_syntax;
+            if (stack_empty(syntax_stack)) {
+                // This should be impossible, we shouldn't be able to
+                // parse this on its own.
+                assert(false);
+            } else if (((Syntax *)stack_peek(syntax_stack))->type != FUNCTION_ARGUMENTS) {
+                arguments_syntax = function_arguments_new();
+            } else {
+                arguments_syntax = stack_pop(syntax_stack);
+            }
+
+            list_push(arguments_syntax->function_arguments->arguments, stack_pop(syntax_stack));
+            stack_push(syntax_stack, arguments_syntax);
+        }
+        |
+        expression
+        {
+            // TODO: find a way to factor out the duplication with the above.
+            if (stack_empty(syntax_stack)) {
+                // This should be impossible, we shouldn't be able to
+                // parse this on its own.
+                assert(false);
+            }
+
+            Syntax *arguments_syntax = function_arguments_new();
+            list_push(arguments_syntax->function_arguments->arguments, stack_pop(syntax_stack));
+
+            stack_push(syntax_stack, arguments_syntax);
+        }
+        ;
+
+statement:
+        RETURN expression ';'
+        {
+            Syntax *current_syntax = stack_pop(syntax_stack);
+            stack_push(syntax_stack, return_statement_new(current_syntax));
+        }
+        |
+        TYPE IDENTIFIER '=' expression ';'
+        {
+            Syntax *init_value = stack_pop(syntax_stack);
+            stack_push(syntax_stack, define_var_new((char*)$2, init_value));
+        }
+        |
+        expression ';'
+        {
+            // Nothing to do, we have the AST node already.
+        }
+        ;
+
+expression:
+	    NUMBER
+        {
+            stack_push(syntax_stack, immediate_new(atoi((char*)$1)));
+            free($1);
+        }
+        |
+	    IDENTIFIER
+        {
+            stack_push(syntax_stack, variable_new((char*)$1));
+        }
+        |
+	    IDENTIFIER '=' expression
+        {
+            Syntax *expression = stack_pop(syntax_stack);
+            stack_push(syntax_stack, assignment_new((char*)$1, expression));
+        }
+        | OPEN_BRACE expression CLOSE_BRACE          {}
+        | '(' expression ')'                    {}
+        |
+        '-' expression
+        {
+            Syntax *current_syntax = stack_pop(syntax_stack);
+            stack_push(syntax_stack, negation_new(current_syntax));
+        }
+        |
+        '~' expression
+        {
+            Syntax *current_syntax = stack_pop(syntax_stack);
+            stack_push(syntax_stack, bitwise_negation_new(current_syntax));
+        }
+        |
+        '!' expression
+        {
+            Syntax *current_syntax = stack_pop(syntax_stack);
+            stack_push(syntax_stack, logical_negation_new(current_syntax));
+        }
+        |
+        expression '+' expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, addition_new(left, right));
+        }
+        |
+        expression '-' expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, subtraction_new(left, right));
+        }
+        |
+        expression '*' expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, multiplication_new(left, right));
+        }
+        |
+        expression AD expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, and_new(left, right));
+        }
+        |
+        expression ORR expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, or_new(left, right));
+        }
+        |
+        expression EQ expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, equals_new(left, right));
+        }
+        |
+        IDENTIFIER '(' argument_list ')'
+        {
+            Syntax *arguments = stack_pop(syntax_stack);
+            stack_push(syntax_stack, function_call_new((char*)$1, arguments));
+        }
+        ;

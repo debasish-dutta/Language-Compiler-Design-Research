@@ -19,7 +19,7 @@ Each stage comprises of mainly 3 stages:
 
 ### Structure of a flex/bison program
 
-![structure of a flex/bison program](assets/struct.png)
+![structure of a flex/bison program](struct.png)
 
 There are two main parts to a parser:
 
