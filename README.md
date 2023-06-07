@@ -5,7 +5,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/debasish-dutta/Language-Compiler-Design-Research?style=flat-square)
 [![wakatime](https://wakatime.com/badge/user/12ef7e17-3042-439c-a828-61d087c8b93e/project/04af9e50-f83a-4754-ae52-c8b9f36df22b.svg?style=flat-square)](https://wakatime.com/badge/user/12ef7e17-3042-439c-a828-61d087c8b93e/project/04af9e50-f83a-4754-ae52-c8b9f36df22b)
 
-
+This is a compiler designed to support a custom programming language loosely based on **`C`**  a 64-bit ARMv8 CPU ( mainly on m1, but also can be expanded on such as on the Raspberry Pi 3 and such). It aims to provide an efficient and reliable compilation process for your language, enabling developers to translate their code into executable binaries. It is also designed to be a easy-to-get-started with language with minimal hardware requirements.
 
 ## Features
 
@@ -35,3 +35,19 @@
     - Run `build.sh <input-file>` to compile a `.dd` source file.
     - Specify the path to the input file that contains the Custom Language code. 
     - Optionally, provide additional flags or options for the compiler.
+
+## Limitations
+
+As with any compiler, there may be limitations and areas that require further improvement. It's important to thoroughly test the compiler and identify any issues or constraints that may impact the development experience or the execution of specific language constructs.
+
+## Future Development
+
+### TODO
+
+
+
+
+
+
+
+
