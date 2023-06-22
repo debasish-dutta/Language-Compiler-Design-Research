@@ -109,10 +109,24 @@ Syntax *multiplication_new(Syntax *left, Syntax *right)
     return syntax;
 }
 
-Syntax *division_new(Syntax *left, Syntax *right)
+Syntax *greater_new(Syntax *left, Syntax *right)
 {
     BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
-    binary_syntax->binary_type = DIVISION;
+    binary_syntax->binary_type = GREATER;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *less_new(Syntax *left, Syntax *right)
+{
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = LESS;
     binary_syntax->left = left;
     binary_syntax->right = right;
 
@@ -161,6 +175,51 @@ Syntax *equals_new(Syntax *left, Syntax *right)
     Syntax *syntax = malloc(sizeof(Syntax));
     syntax->type = BINARY_OPERATOR;
     syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *greater_equals_new(Syntax *left, Syntax *right)
+{
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = GREATER_EQUALS;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *less_equals_new(Syntax *left, Syntax *right)
+{
+    BinaryExpression *binary_syntax = malloc(sizeof(BinaryExpression));
+    binary_syntax->binary_type = LESS_EQUALS;
+    binary_syntax->left = left;
+    binary_syntax->right = right;
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = BINARY_OPERATOR;
+    syntax->binary_expression = binary_syntax;
+
+    return syntax;
+}
+
+Syntax *if_new(Syntax *condition, Syntax *then_stmts, Syntax *else_stmts) {
+    IfStatement *if_statement = malloc(sizeof(IfStatement));
+    if_statement->condition = condition;
+    if_statement->then_stmts = then_stmts;
+    if(else_stmts){
+        if_statement->else_stmts = else_stmts;
+    } else{
+        if_statement->else_stmts = NULL;
+    }
+
+    Syntax *syntax = malloc(sizeof(Syntax));
+    syntax->type = IF_STATEMENT;
+    syntax->if_statement = if_statement;
 
     return syntax;
 }
@@ -314,6 +373,12 @@ void syntax_free(Syntax *syntax)
     {
         syntax_list_free(syntax->function_arguments->arguments);
         free(syntax->function_arguments);
+    } else if (syntax->type == IF_STATEMENT) {
+        syntax_free(syntax->if_statement->condition);
+        syntax_free(syntax->if_statement->then_stmts);
+        if (syntax->if_statement->else_stmts != NULL) {
+            syntax_free(syntax->if_statement->else_stmts);
+        }
     }
     else if (syntax->type == RETURN_STATEMENT)
     {
@@ -396,9 +461,13 @@ char *syntax_type_name(Syntax *syntax)
         {
             return "MULTIPLICATION";
         }
-        else if (syntax->binary_expression->binary_type == DIVISION)
+        else if (syntax->binary_expression->binary_type == GREATER)
         {
-            return "DIVISION";
+            return "GREATER THAN";
+        }
+        else if (syntax->binary_expression->binary_type == LESS)
+        {
+            return "LESS THAN";
         }
         else if (syntax->binary_expression->binary_type == AND)
         {
@@ -412,6 +481,14 @@ char *syntax_type_name(Syntax *syntax)
         {
             return "EQUALS";
         }
+        else if (syntax->binary_expression->binary_type == GREATER_EQUALS)
+        {
+            return "GREATER OR EQUAL";
+        }
+        else if (syntax->binary_expression->binary_type == LESS_EQUALS)
+        {
+            return "LESS OR EQUAL";
+        }
     }
     else if (syntax->type == FUNCTION_CALL)
     {
@@ -420,6 +497,9 @@ char *syntax_type_name(Syntax *syntax)
     else if (syntax->type == FUNCTION_ARGUMENTS)
     {
         return "FUNCTION ARGUMENTS";
+    } 
+    else if (syntax->type == IF_STATEMENT) {
+        return "IF";
     }
     else if (syntax->type == RETURN_STATEMENT)
     {
@@ -502,6 +582,25 @@ void print_syntax_indented(Syntax *syntax, int indent)
         {
             argument = list_get(arguments, i);
             print_syntax_indented(argument, indent + 4);
+        }
+    } else if (syntax->type == IF_STATEMENT) {
+        printf("%s CONDITION\n", syntax_type_string);
+        print_syntax_indented(syntax->if_statement->condition, indent + 4);
+
+        for (int i = 0; i < indent; i++) {
+            printf(" ");
+        }
+
+        printf("%s THEN\n", syntax_type_string);
+        print_syntax_indented(syntax->if_statement->then_stmts, indent + 4);
+
+        if (syntax->if_statement->else_stmts != NULL) {
+        for (int i = 0; i < indent; i++) {
+            printf(" ");
+        }
+        
+        printf("%s ELSE\n", syntax_type_string);
+        print_syntax_indented(syntax->if_statement->else_stmts, indent + 4);
         }
     }
     else if (syntax->type == RETURN_STATEMENT)

@@ -4,7 +4,13 @@
   # compiler flags:
   #  -g    adds debugging information to the executable file
   #  -Wall turns on most, but not all, compiler warnings
-  CFLAGS  =  -Wall -Wextra -g -O0 -std=gnu99 -fstack-protector-all -ftrapv
+  CFLAGS  =  -Wall -Wextra -g -O0 -std=gnu99  -fstack-protector-all -ftrapv
+  # Switch on debugger
+#   CFLAGS += -fsanitize=address
+  # Check the operating system
+ifeq ($(shell uname), Darwin)
+	CFLAGS += -D TARGET_ARCH_M1
+endif
 
   BIN_DIR = bin
   BUILD_DIR = build

@@ -1,3 +1,5 @@
 fun main() {
-    return 9;
+    var a;
+    a = 6;
+    return a;
 }

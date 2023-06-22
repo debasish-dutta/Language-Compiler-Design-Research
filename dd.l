@@ -27,6 +27,9 @@ void yyerror();
 "&&"          { count(); return AD; }
 "||"          { count(); return ORR; }
 "=="           { count(); return EQ; }
+">"           { count(); return '>'; }
+">="           { count(); return GT_EQ; }
+"<="           { count(); return LT_EQ; }
 "="           { count(); return '='; }
 ";"           { count(); return ';'; }
 ","           { count(); return ','; }
@@ -34,6 +37,7 @@ void yyerror();
                 /* TODO: check numbers are in the legal range, and don't start with 0. */
                 count(); yylval = strdup(yytext); return NUMBER;}
 "if"          { count(); return IF; }
+"else"          { count(); return ELSE; }
 "while"       { count(); return WHILE; }
 "return"      { count(); return RETURN; }
 "var"         { count(); return TYPE; }

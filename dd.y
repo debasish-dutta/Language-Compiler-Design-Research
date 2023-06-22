@@ -29,14 +29,15 @@ Stack *syntax_stack;
 %token FUN
 %token TYPE IDENTIFIER RETURN NUMBER
 %token OPEN_BRACE CLOSE_BRACE
-%token IF WHILE
-%token LESS_OR_EQUAL
+%token IF ELSE WHILE
+%token GT_EQ LT_EQ
 
 /* Operator associativity, least precedence first.
  * See http://en.cppreference.com/w/c/language/operator_precedence
  */
 %left '='
 %left '<'
+%left '>'
 %left '+'
 %left '-'
 %left '*'
@@ -154,6 +155,22 @@ statement:
             stack_push(syntax_stack, return_statement_new(current_syntax));
         }
         |
+        IF '(' expression ')' OPEN_BRACE block CLOSE_BRACE
+        {
+            // TODO: else statements.
+            Syntax *then_stmts = stack_pop(syntax_stack);
+            Syntax *condition = stack_pop(syntax_stack);
+            stack_push(syntax_stack, if_new(condition, then_stmts, NULL));
+        }
+        |
+        IF '(' expression ')' OPEN_BRACE block CLOSE_BRACE ELSE OPEN_BRACE block CLOSE_BRACE
+        {
+            Syntax *else_stmts = stack_pop(syntax_stack);
+            Syntax *then_stmts = stack_pop(syntax_stack);
+            Syntax *condition = stack_pop(syntax_stack);
+            stack_push(syntax_stack, if_new(condition, then_stmts, else_stmts));
+        }
+        |
         TYPE IDENTIFIER '=' expression ';'
         {
             Syntax *init_value = stack_pop(syntax_stack);
@@ -165,7 +182,6 @@ statement:
             // Nothing to do, we have the AST node already.
         }
         ;
-
 expression:
 	    NUMBER
         {
@@ -225,6 +241,20 @@ expression:
             stack_push(syntax_stack, multiplication_new(left, right));
         }
         |
+        expression '>' expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, greater_new(left, right));
+        }
+        |
+        expression '<' expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, less_new(left, right));
+        }
+        |
         expression AD expression
         {
             Syntax *right = stack_pop(syntax_stack);
@@ -244,6 +274,20 @@ expression:
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
             stack_push(syntax_stack, equals_new(left, right));
+        }
+        |
+        expression GT_EQ expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, greater_equals_new(left, right));
+        }
+        |
+        expression LT_EQ expression
+        {
+            Syntax *right = stack_pop(syntax_stack);
+            Syntax *left = stack_pop(syntax_stack);
+            stack_push(syntax_stack, less_equals_new(left, right));
         }
         |
         IDENTIFIER '(' argument_list ')'

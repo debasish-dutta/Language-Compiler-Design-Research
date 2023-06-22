@@ -23,6 +23,7 @@ void print_help()
     printf("    $ dd --help\n\n");
 }
 
+
 extern Stack *syntax_stack;
 
 extern int yyparse(void);
@@ -50,6 +51,8 @@ int main(int argc, char *argv[])
     ++argv, --argc; /* Skip over program name. */
 
     stage_t terminate_at = EMIT_ASM;
+
+    check_target_architecture();
 
     char *file_name;
 
@@ -151,7 +154,6 @@ int main(int argc, char *argv[])
             fprintf(stderr, "%s", syntax_type_name(stack_pop(syntax_stack)));
         }
     }
-
     printf("\n \n");
     if (terminate_at == PARSE)
     {

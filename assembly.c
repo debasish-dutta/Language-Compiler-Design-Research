@@ -9,8 +9,17 @@
 #include "env.h"
 #include "context.h"
 
+static int is_M1 = 0;
 static const int WORD_SIZE = 16;
 const int MAX_MNEMONIC_LENGTH = 7;
+
+void check_target_architecture() {
+#ifdef TARGET_ARCH_M1
+    // printf("Target architecture: M1\n");
+    is_M1=1;
+#endif
+// printf("is m1 %d", is_M1);
+}
 
 void emit_header(FILE *out, char *name) { fprintf(out, "%s\n", name); }
 
@@ -49,10 +58,25 @@ void emit_instr_format(FILE *out, char *instr, char *operands_format, ...) {
     fputs("\n", out);
 }
 
+char *fresh_local_label(char *prefix, Context *ctx) {
+    // We assume we never write more than 6 chars of digits, plus a '.' and '_'.
+    size_t buffer_size = strlen(prefix) + 8;
+    char *buffer = malloc(buffer_size);
+
+    snprintf(buffer, buffer_size, ".%s_%d", prefix, ctx->label_count);
+    ctx->label_count++;
+
+    return buffer;
+}
+
 void emit_label(FILE *out, char *label) { fprintf(out, "%s:\n", label); }
 
 void emit_function_prologue(FILE *out) {
-    fprintf(out, ".align 4");
+    if(is_M1){
+        fprintf(out, ".align 4");
+    } else {
+        fprintf(out, ".align 2");
+    }
     fprintf(out, "\n\n");
 }
 
@@ -65,7 +89,7 @@ void emit_function_declaration(FILE *out, char *name) {
 
 void emit_return(FILE *out) {
     // fprintf(out, "    leave\n");
-    fprintf(out, "    ret\n");
+    // fprintf(out, "    ret\n");
 }
 
 void emit_function_epilogue(FILE *out) {
@@ -76,6 +100,16 @@ void write_header(FILE *out) {  }
 
 void write_footer(FILE *out) {
     // TODO: this will break if a user defines a function called '_start'.
+
+    fprintf(out, "\n");
+
+    // Exiting
+    if (is_M1) {
+        emit_instr(out, "mov", "x16, #1");
+    } else {
+        emit_instr(out, "mov", "x8, #93");
+    }
+
     emit_instr(out, "svc", "#0xFFFF");
 }
 
@@ -132,6 +166,16 @@ void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
             emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
             emit_instr_format(out, "sub", "X0, X1, X0", stack_offset);
 
+        } else if (binary_syntax->binary_type == GREATER) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "cmp", "X1, X0", stack_offset);
+            emit_instr_format(out, "cset", "X0, gt", stack_offset);
+
+        } else if (binary_syntax->binary_type == LESS) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "cmp", "X1, X0", stack_offset);
+            emit_instr_format(out, "cset", "X0, lt", stack_offset);
+
         } else if (binary_syntax->binary_type == AND) {
             emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
             emit_instr_format(out, "and", "X0, X0, X1", stack_offset);
@@ -144,6 +188,16 @@ void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
             emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
             emit_instr_format(out, "cmp", " X0, X1", stack_offset);
             emit_instr_format(out, "cset", " X0, eq", stack_offset);
+
+        } else if (binary_syntax->binary_type == GREATER_EQUALS) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "cmp", " X1, X0", stack_offset);
+            emit_instr_format(out, "cset", " X0, ge", stack_offset);
+
+        } else if (binary_syntax->binary_type == LESS_EQUALS) {
+            emit_instr_format(out, "ldr", "X1, [sp, #%d]", stack_offset);
+            emit_instr_format(out, "cmp", " X1, X0", stack_offset);
+            emit_instr_format(out, "cset", " X0, le", stack_offset);
         }
 
     
@@ -152,7 +206,24 @@ void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
         write_syntax(out, return_statement->expression, ctx);
 
         emit_return(out);
+    } else if (syntax->type == IF_STATEMENT) {
+        IfStatement *if_statement = syntax->if_statement;
+        write_syntax(out, if_statement->condition, ctx);
 
+        char *label_end = fresh_local_label("if_end", ctx);
+        char *label_else = fresh_local_label("if_else", ctx);
+
+        emit_instr(out, "cmp", "x0, #0");
+        emit_instr_format(out, "beq", "%s", label_else);
+
+        write_syntax(out, if_statement->then_stmts, ctx);
+        emit_instr_format(out, "b", "%s", label_end);
+
+        emit_label(out, label_else);
+        if (if_statement->else_stmts != NULL) {
+            write_syntax(out, if_statement->else_stmts, ctx);
+        }
+        emit_label(out, label_end);
     } else if (syntax->type == FUNCTION_CALL) {
         emit_instr_format(out, "call", syntax->function_call->function_name);
 
@@ -176,7 +247,12 @@ void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
     } else if (syntax->type == FUNCTION) {
         new_scope(ctx);
 
-        emit_function_declaration(out, syntax->function->name);
+        if(is_M1){
+            emit_function_declaration(out, syntax->function->name);
+        } else{
+            char *start = "start";
+            emit_function_declaration(out, start);
+        }
         // emit_function_prologue(out);
         write_syntax(out, syntax->function->root_block, ctx);
         emit_function_epilogue(out);

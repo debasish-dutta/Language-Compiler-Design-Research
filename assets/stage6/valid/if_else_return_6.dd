@@ -1,0 +1,8 @@
+fun main() {
+    var a = 9;
+    if (a<0){
+        return a;
+    } else {
+        return a-3;
+    }
+}

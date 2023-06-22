@@ -1,5 +1,6 @@
 #!/bin/zsh
 
+kernel=$(uname -s)
 BIN=bin
 BUILD=build
 MAIN=$1
@@ -17,10 +18,21 @@ echo "Building $FILENAME"
 
 mv $BUILD/$FILENAME.asm $BIN/$FILENAME.asm
 # mv dd.asm $BIN/$FILENAME.asm
+# echo $kernel
 
-as $BIN/$FILENAME.asm -o $BIN/$FILENAME.o
-
-ld $BIN/$FILENAME.o -o $BIN/$FILENAME -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path`
+if [ $kernel=="Darwin" ]; then
+    # macOS (M1 Mac)
+    echo "linking and loading in m1"
+    as $BIN/$FILENAME.asm -o $BIN/$FILENAME.o
+    ld $BIN/$FILENAME.o -o $BIN/$FILENAME -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path`
+elif [ "$kernel"=="Linux" ]; then
+    # Linux (Raspberry Pi)
+    as $BIN/$FILENAME.asm -o $BIN/$FILENAME.o-gdwaef64 -g3
+    ld $BIN/$FILENAME.o -o $BIN/$FILENAME -arch -arm64
+else
+    echo "Unsupported system"
+    exit 1
+fi
 
 echo "Running binary $FILENAME"
 ./$BIN/$FILENAME

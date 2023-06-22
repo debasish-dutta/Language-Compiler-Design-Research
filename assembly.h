@@ -4,6 +4,8 @@
 #ifndef ASSEMBLY_HEADER
 #define ASSEMBLY_HEADER
 
+void check_target_architecture();
+
 void emit_header(FILE *out, char *name);
 
 void emit_insn(FILE *out, char *insn);
