@@ -219,7 +219,7 @@ void write_syntax(FILE *out, Syntax *syntax, Context *ctx) {
         write_syntax(out, if_statement->then_stmts, ctx);
         emit_instr_format(out, "b", "%s", label_end);
 
-        emit_label(out, label_else);
+            emit_label(out, label_else);
         if (if_statement->else_stmts != NULL) {
             write_syntax(out, if_statement->else_stmts, ctx);
         }

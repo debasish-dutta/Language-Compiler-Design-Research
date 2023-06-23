@@ -16,29 +16,28 @@ void yyerror();
 [ \t\n\f]+      { count(); /* Ignore whitespace */ }
 "{"           { count(); return OPEN_BRACE; }
 "}"           { count(); return CLOSE_BRACE; }
-"("           { count(); return '('; }
-")"           { count(); return ')'; }
-"~"           { count(); return '~'; }
-"!"           { count(); return '!'; }
-"+"           { count(); return '+'; }
-"-"           { count(); return '-'; }
-"*"           { count(); return '*'; }
-"<"           { count(); return '<'; }
+"("           { count(); return LB; }
+")"           { count(); return RB; }
+"~"           { count(); return NT; }
+"!"           { count(); return LN; }
+"+"           { count(); return  PLUS; }
+"-"           { count(); return MINUS; }
+"*"           { count(); return MULT; }
+"<"           { count(); return LST; }
 "&&"          { count(); return AD; }
 "||"          { count(); return ORR; }
 "=="           { count(); return EQ; }
-">"           { count(); return '>'; }
+">"           { count(); return GRT; }
 ">="           { count(); return GT_EQ; }
 "<="           { count(); return LT_EQ; }
-"="           { count(); return '='; }
-";"           { count(); return ';'; }
-","           { count(); return ','; }
+"="           { count(); return ASN; }
+";"           { count(); return SEMICOLON; }
+","           { count(); return COMMA; }
 [0-9]+        {
                 /* TODO: check numbers are in the legal range, and don't start with 0. */
                 count(); yylval = strdup(yytext); return NUMBER;}
 "if"          { count(); return IF; }
 "else"          { count(); return ELSE; }
-"while"       { count(); return WHILE; }
 "return"      { count(); return RETURN; }
 "var"         { count(); return TYPE; }
 [a-zA-Z][_a-zA-Z0-9]* { count(); yylval = strdup(yytext); return IDENTIFIER; }

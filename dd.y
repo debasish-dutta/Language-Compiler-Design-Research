@@ -28,22 +28,26 @@ Stack *syntax_stack;
 
 %token FUN
 %token TYPE IDENTIFIER RETURN NUMBER
-%token OPEN_BRACE CLOSE_BRACE
-%token IF ELSE WHILE
-%token GT_EQ LT_EQ
+%token LB RB OPEN_BRACE CLOSE_BRACE
+%token IF ELSE
+%token EQ GT_EQ LT_EQ
+%token SEMICOLON COMMA
 
 /* Operator associativity, least precedence first.
  * See http://en.cppreference.com/w/c/language/operator_precedence
  */
-%left '='
-%left '<'
-%left '>'
-%left '+'
-%left '-'
-%left '*'
+%left ASN
+%left LST
+%left GRT
+%left PLUS
+%left MINUS
+%left MULT
 %left AD ORR EQ
-%nonassoc '!'
-%nonassoc '~'
+%left GT_EQ 
+%left LT_EQ
+%nonassoc LN
+%nonassoc NT
+%nonassoc ELSE
 
 %%
 
@@ -67,7 +71,7 @@ program:
         ;
 
 function:
-	FUN IDENTIFIER '(' parameter_list ')' OPEN_BRACE block CLOSE_BRACE
+	FUN IDENTIFIER LB parameter_list RB OPEN_BRACE block CLOSE_BRACE
         {
             Syntax *current_syntax = stack_pop(syntax_stack);
             // TODO: assert current_syntax has type BLOCK.
@@ -81,7 +85,7 @@ parameter_list:
         ;
 
 nonempty_parameter_list:
-        TYPE IDENTIFIER ',' parameter_list
+        TYPE IDENTIFIER COMMA parameter_list
         |
         TYPE IDENTIFIER
         ;
@@ -115,7 +119,7 @@ argument_list:
         ;
 
 nonempty_argument_list:
-        expression ',' nonempty_argument_list
+        expression COMMA nonempty_argument_list
         {
             Syntax *arguments_syntax;
             if (stack_empty(syntax_stack)) {
@@ -149,13 +153,13 @@ nonempty_argument_list:
         ;
 
 statement:
-        RETURN expression ';'
+        RETURN expression SEMICOLON
         {
             Syntax *current_syntax = stack_pop(syntax_stack);
             stack_push(syntax_stack, return_statement_new(current_syntax));
         }
         |
-        IF '(' expression ')' OPEN_BRACE block CLOSE_BRACE
+        IF LB expression RB OPEN_BRACE block CLOSE_BRACE
         {
             // TODO: else statements.
             Syntax *then_stmts = stack_pop(syntax_stack);
@@ -163,7 +167,7 @@ statement:
             stack_push(syntax_stack, if_new(condition, then_stmts, NULL));
         }
         |
-        IF '(' expression ')' OPEN_BRACE block CLOSE_BRACE ELSE OPEN_BRACE block CLOSE_BRACE
+        IF LB expression RB OPEN_BRACE block CLOSE_BRACE ELSE OPEN_BRACE block CLOSE_BRACE
         {
             Syntax *else_stmts = stack_pop(syntax_stack);
             Syntax *then_stmts = stack_pop(syntax_stack);
@@ -171,13 +175,13 @@ statement:
             stack_push(syntax_stack, if_new(condition, then_stmts, else_stmts));
         }
         |
-        TYPE IDENTIFIER '=' expression ';'
+        TYPE IDENTIFIER ASN expression SEMICOLON
         {
             Syntax *init_value = stack_pop(syntax_stack);
             stack_push(syntax_stack, define_var_new((char*)$2, init_value));
         }
         |
-        expression ';'
+        expression SEMICOLON
         {
             // Nothing to do, we have the AST node already.
         }
@@ -194,61 +198,61 @@ expression:
             stack_push(syntax_stack, variable_new((char*)$1));
         }
         |
-	    IDENTIFIER '=' expression
+	    IDENTIFIER ASN expression
         {
             Syntax *expression = stack_pop(syntax_stack);
             stack_push(syntax_stack, assignment_new((char*)$1, expression));
         }
         | OPEN_BRACE expression CLOSE_BRACE          {}
-        | '(' expression ')'                    {}
+        | LB expression RB                    {}
         |
-        '-' expression
+        MINUS expression
         {
             Syntax *current_syntax = stack_pop(syntax_stack);
             stack_push(syntax_stack, negation_new(current_syntax));
         }
         |
-        '~' expression
+        NT expression
         {
             Syntax *current_syntax = stack_pop(syntax_stack);
             stack_push(syntax_stack, bitwise_negation_new(current_syntax));
         }
         |
-        '!' expression
+        LN expression
         {
             Syntax *current_syntax = stack_pop(syntax_stack);
             stack_push(syntax_stack, logical_negation_new(current_syntax));
         }
         |
-        expression '+' expression
+        expression PLUS expression
         {
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
             stack_push(syntax_stack, addition_new(left, right));
         }
         |
-        expression '-' expression
+        expression MINUS expression
         {
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
             stack_push(syntax_stack, subtraction_new(left, right));
         }
         |
-        expression '*' expression
+        expression MULT expression
         {
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
             stack_push(syntax_stack, multiplication_new(left, right));
         }
         |
-        expression '>' expression
+        expression GRT expression
         {
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
             stack_push(syntax_stack, greater_new(left, right));
         }
         |
-        expression '<' expression
+        expression LST expression
         {
             Syntax *right = stack_pop(syntax_stack);
             Syntax *left = stack_pop(syntax_stack);
@@ -290,7 +294,7 @@ expression:
             stack_push(syntax_stack, less_equals_new(left, right));
         }
         |
-        IDENTIFIER '(' argument_list ')'
+        IDENTIFIER LB argument_list RB
         {
             Syntax *arguments = stack_pop(syntax_stack);
             stack_push(syntax_stack, function_call_new((char*)$1, arguments));
