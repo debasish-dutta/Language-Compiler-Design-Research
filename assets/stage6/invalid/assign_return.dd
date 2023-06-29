@@ -1,0 +1,5 @@
+fun main() {
+    if (a==9){
+        return 1;
+    }
+}
